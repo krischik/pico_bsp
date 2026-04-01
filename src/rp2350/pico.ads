@@ -38,7 +38,7 @@ package Pico is
    GP27 : aliased GPIO_Point := (Pin => 27);
    GP28 : aliased GPIO_Point := (Pin => 28);
 
-   LED : GPIO_Point renames GP0;
+   --  LED : GPIO_Point renames WL_GPIO0;
 
    --  Pico Datasheet - 4.4 Powerchain - Page 18 GPIO23 controls the RT6150 PS (Power Save) pin, active low.
    SMPS_PS : GPIO_Point renames GP23;
