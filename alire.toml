@@ -11,6 +11,7 @@ website = "https://pico-doc.synack.me/"
 
 [[depends-on]]
 rp2040_hal = "^2"
+light_tasking_rp2350            = "^15.2"
 
 [[pins]]
 rp2040_hal = { url='https://github.com/JeremyGrosser/rp2040_hal', branch='3.x' }
@@ -25,4 +26,4 @@ Device = {type = "Enum", values = [
 ], default = "RP2040"}
 
 [configuration.values]
-rp2040_hal.device               = "RP2040"
+rp2040_hal.device               = "RP2350A"
