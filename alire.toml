@@ -1,16 +1,28 @@
 name = "pico_bsp"
 description = "Board support package for Raspberry Pi Pico"
-version = "2.2.0"
+version = "3.0.0-alpha1"
 licenses = "BSD-3-Clause"
 
-authors = ["Jeremy Grosser"]
-maintainers = ["Jeremy Grosser <jeremy@synack.me>"]
-maintainers-logins = ["JeremyGrosser"]
-tags = ["embedded", "nostd", "raspberrypi", "pico", "rp2040", "bsp"]
+authors = ["Jeremy Grosser", "Martin Krischik"]
+maintainers = ["Jeremy Grosser <jeremy@synack.me>", "Martin Krischik <krischik@users.sourceforge.net>"]
+maintainers-logins = ["JeremyGrosser", "krischik"]
+tags = ["embedded", "nostd", "raspberrypi", "pico", "rp2040", "rp2350", "bsp"]
 website = "https://pico-doc.synack.me/"
 
 [[depends-on]]
 rp2040_hal = "^2"
 
+[[pins]]
+rp2040_hal = { url='https://github.com/JeremyGrosser/rp2040_hal', branch='3.x' }
+
+[configuration.variables]
+Device = {type = "Enum", values = [
+    "RP2040",  # Cortex-M0+, QFN-56, 30 GPIO, no internal flash
+    "RP2350A", # Cortex-M33, QFN-60, 30 GPIO, no internal flash
+    "RP2354A", # Cortex-M33, QFN-60, 30 GPIO, 2 MB internal flash
+    "RP2350B", # Cortex-M33, QFN-80, 48 GPIO, no internal flash
+    "RP2354B", # Cortex-M33, QFN-80, 48 GPIO, 2 MB internal flash
+], default = "RP2040"}
+
 [configuration.values]
-rp2040_hal.Flash_Chip = "w25qxx"
+rp2040_hal.device               = "RP2040"
