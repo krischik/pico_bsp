@@ -1,16 +1,45 @@
 name = "pico_bsp"
 description = "Board support package for Raspberry Pi Pico"
-version = "2.2.0"
+long-description = """
+Board support package for the Raspberry Pi Pico and Pico 2.
+
+Supported devices:
+
+* RP2040   - Cortex-M0+, QFN-56, 30 GPIO, no internal flash
+* RP2350A  - Cortex-M33, QFN-60, 30 GPIO, no internal flash
+* RP2354A  - Cortex-M33, QFN-60, 30 GPIO, 2 MB internal flash
+* RP2350B  - Cortex-M33, QFN-80, 48 GPIO, no internal flash
+* RP2354B  - Cortex-M33, QFN-80, 48 GPIO, 2 MB internal flash
+
+Make sure to use the **same device** for both `rp2040_hal` and `pico_bsp`. For example:
+
+```toml
+pico_bsp.device   = "RP2350A"
+rp2040_hal.device = "RP2350A"
+```
+
+The configuration variable Device controls which variant is selected at build time.
+"""
+version = "3.0.0-alpha1"
 licenses = "BSD-3-Clause"
 
-authors = ["Jeremy Grosser"]
+authors = ["Jeremy Grosser", "Martin Krischik"]
 maintainers = ["Jeremy Grosser <jeremy@synack.me>"]
 maintainers-logins = ["JeremyGrosser"]
-tags = ["embedded", "nostd", "raspberrypi", "pico", "rp2040", "bsp"]
+tags = ["embedded", "nostd", "raspberrypi", "pico", "rp2040", "rp2350", "bsp"]
 website = "https://pico-doc.synack.me/"
 
 [[depends-on]]
-rp2040_hal = "^2"
+rp2040_hal  = "^3"
 
-[configuration.values]
-rp2040_hal.Flash_Chip = "w25qxx"
+[[pins]]
+rp2040_hal = { url='https://github.com/JeremyGrosser/rp2040_hal', branch='3.x' }
+
+[configuration.variables]
+Device = {type = "Enum", values = [
+    "RP2040",  # Cortex-M0+, QFN-56, 30 GPIO, no internal flash
+    "RP2350A", # Cortex-M33, QFN-60, 30 GPIO, no internal flash
+    "RP2354A", # Cortex-M33, QFN-60, 30 GPIO, 2 MB internal flash
+    "RP2350B", # Cortex-M33, QFN-80, 48 GPIO, no internal flash
+    "RP2354B", # Cortex-M33, QFN-80, 48 GPIO, 2 MB internal flash
+], default = "RP2040"}

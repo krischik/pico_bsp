@@ -2,6 +2,13 @@ with "config/pico_bsp_config.gpr";
 with "rp2040_hal.gpr";
 
 project Pico_Bsp is
+   Device_Sources := ();
+   case Pico_Bsp_Config.Device is
+      when "RP2040" =>
+         Device_Sources := ("src/rp2040");
+      when "RP2350A" | "RP2354A" | "RP2350B" | "RP2354B" =>
+         Device_Sources := ("src/rp2350");
+   end case;
 
    for Runtime ("Ada") use "light-cortex-m0p";
    for Target use "arm-eabi";
@@ -14,7 +21,10 @@ project Pico_Bsp is
    for Create_Missing_Dirs use "True";
    for Library_Dir use "lib";
 
-   Linker_Switches := RP2040_HAL.Linker_Switches;
+   for Source_Dirs use
+      Device_Sources &
+      ("src/",
+       "config/");
 
    type Library_Type_Type is ("relocatable", "static", "static-pic");
    Library_Type : Library_Type_Type :=
