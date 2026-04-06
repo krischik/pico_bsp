@@ -19,6 +19,7 @@ pragma License (Modified_Gpl);
 pragma Ada_2022;
 pragma Extensions_Allowed (On);
 
+with Pico.Utils;
 with RP.GPIO;
 with RP.PWM;
 with HAL;
@@ -132,6 +133,69 @@ package Pico.Analog is
       (if Right = 0 then 0
        elsif Right = 255 then Left
        else RP.PWM.Period (Integer (Left) * Integer (Right) / 255)) with
+      Inline, Pure_Function;
+
+   ---
+   --  Map an input value from a custom range directly to a Percentage (0.0 .. 100.0).
+   --
+   --  This is a convenient shortcut that scales any integer input (for example
+   --  from an ADC, a sensor, or a counter) into the full percentage range used
+   --  by ``Write_Analog``. It gives you 1000 distinct levels (0.0, 0.1, 0.2 … 99.9, 100.0)
+   --  which provides finer control than the 256 levels of ``Analog_Level``.
+   --
+   --  Internally it first calls ``Pico.Utils.Map`` to get a value in the range 0..999,
+   --  then converts that to ``Percentage``. The division by 10 is done by the fixed-point
+   --  type itself — you do **not** need to split the integer manually.
+   --
+   --  Why the temporary ``Temp`` variable?
+   --    The ``declare`` expression makes the mapping step explicit and easy to read.
+   --    It also avoids repeating the long ``Pico.Utils.Map`` call.
+   --
+   --  Example:
+   --    --  Convert a potentiometer reading (0..1023) to a PWM percentage
+   --    Brightness := Map (Pot_Value, 0, 1023);
+   --    Write_Analog (LED_Point, Brightness);
+   --
+   --: @param In_Value  Value to be mapped
+   --: @param In_Min    Lower bound of the input range
+   --: @param In_Max    Upper bound of the input range
+   --: @return          Value scaled to the range 0.0 .. 100.0 as Percentage
+   function Map
+      (In_Value  : in Integer;
+       In_Min : in Integer;
+       In_Max : in Integer)
+       return Percentage is
+       (
+         declare
+            Temp : constant Integer := Pico.Utils.Map (In_Value, In_Min, In_Max, 0, 999);
+         begin
+            Percentage (Temp) / 10
+            --"  Percentage (Temp / 10) + Percentage (Temp mod 10) / 10
+       )  with Inline, Pure_Function;
+
+   ---
+   --  Map an input value from a custom range directly to an Analog_Level (0..255).
+   --
+   --  This is a convenient shortcut for the common case where you want to convert a sensor reading or any integer
+   --  value into an 8-bit analogue output suitable for PWM. It internally calls ``Pico.Utils.Map`` and scales the
+   --  result to the full range of ``Analog_Level``.
+   --
+   --  Example:
+   --    --  Convert a potentiometer reading (0..1023) to PWM level
+   --    LED_Level := Map (Pot_Value, 0, 1023);
+   --
+   --: @param In_Value  Value to be mapped
+   --: @param In_Min    Lower bound of the input range
+   --: @param In_Max    Upper bound of the input range
+   --: @return          Value scaled to the range 0..255 as Analog_Level
+   function Map
+      (In_Value : in Integer;
+       In_Min   : in Integer;
+       In_Max   : in Integer)
+       return Analog_Level is
+      (Analog_Level
+          (Pico.Utils.Map
+              (In_Value, In_Min, In_Max, Integer (Analog_Level'First), Integer (Analog_Level'Last - 1)))) with
       Inline, Pure_Function;
 
 private
