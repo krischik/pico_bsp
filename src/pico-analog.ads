@@ -56,11 +56,9 @@ package Pico.Analog is
    subtype Analog_Level is HAL.UInt8;
 
    ---
-   --  Create a new PWM point from a GPIO point. This configures the PWM
-   --  hardware for the given GPIO pin with the specified base frequency and
-   --  reload period. Note that the final output frequency will be
-   --  approximately Frequency divided by Reload, adjusted to the nearest
-   --  divider of the Pico's base frequency.
+   --  Create a new PWM point from a GPIO point. This configures the PWM hardware for the given GPIO pin with the
+   --  specified base frequency and reload period. Note that the final output frequency will be approximately
+   --  Frequency divided by Reload, adjusted to the nearest divider of the Pico's base frequency.
    --
    --: @param Point     GPIO point to use for the PWM output
    --: @param Frequency Base frequency in Hertz
@@ -85,8 +83,7 @@ package Pico.Analog is
       Inline;
 
    ---
-   --  Get the underlying PWM point to use with the RP.PWM package if more
-   --  advanced control is required.
+   --  Get the underlying PWM point to use with the RP.PWM package if more advanced control is required.
    --
    function Get_Base (Point : in PWM_Point) return RP.PWM.PWM_Point with
       Inline, Pure_Function;
@@ -104,8 +101,7 @@ package Pico.Analog is
       Inline, Pure_Function;
 
    ---
-   --  Calculate the actual reload counter needed for a given analogue output
-   --  expressed as a percentage.
+   --  Calculate the actual reload counter needed for a given analogue output expressed as a percentage.
    --
    --: @param Left   Base reload counter
    --: @param Right  Desired analogue output as a percentage (0.0 .. 100.0)
@@ -120,8 +116,7 @@ package Pico.Analog is
       Inline, Pure_Function;
 
    ---
-   --  Calculate the actual reload counter needed for a given analogue output
-   --  expressed as an 8-bit level.
+   --  Calculate the actual reload counter needed for a given analogue output expressed as an 8-bit level.
    --
    --: @param Left   Base reload counter
    --: @param Right  Desired analogue output as an 8-bit value (0 .. 255)
@@ -160,7 +155,7 @@ package Pico.Analog is
    --: @param In_Min    Lower bound of the input range
    --: @param In_Max    Upper bound of the input range
    --: @return          Value scaled to the range 0.0 .. 100.0 as Percentage
-   function Map
+   function Map_Percentage
       (In_Value  : in Integer;
        In_Min : in Integer;
        In_Max : in Integer)
@@ -188,7 +183,7 @@ package Pico.Analog is
    --: @param In_Min    Lower bound of the input range
    --: @param In_Max    Upper bound of the input range
    --: @return          Value scaled to the range 0..255 as Analog_Level
-   function Map
+   function Map_Analog_Level
       (In_Value : in Integer;
        In_Min   : in Integer;
        In_Max   : in Integer)
