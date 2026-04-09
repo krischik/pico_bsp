@@ -19,51 +19,58 @@ pragma License (Modified_Gpl);
 pragma Ada_2022;
 pragma Extensions_Allowed (On);
 
-package body Pico.Analog is
+with HAL.UART;
+with RP.Device;
+with RP.GPIO;
+with RP.UART;
 
-   function To_PWM
-      (Point     : in out RP.GPIO.GPIO_Point;
-       Frequency : in     RP.Hertz      := Default_Frequency;
-       Reload    : in     RP.PWM.Period := Default_Reload)
-       return PWM_Point
-   is
-      Retval : constant PWM_Point :=
-         (RP.PWM.To_PWM (Point),
-          Frequency,
-          Reload);
+package body Pico.UART_IO is
+   use type HAL.UART.UART_Status;
+
+   UART   : RP.UART.UART_Port renames RP.Device.UART_0;
+   TX_Pin : RP.GPIO.GPIO_Point renames Pico.GP0;   -- UART0 TX
+   RX_Pin : RP.GPIO.GPIO_Point renames Pico.GP1;   -- UART0 RX
+
+   procedure Initialise is
    begin
-      if Frequency > 0 then
-         RP.PWM.Set_Frequency (Retval.Base.Slice, Frequency);
+      TX_Pin.Configure
+         (Mode => RP.GPIO.Output,
+          Pull => RP.GPIO.Pull_Up,
+          Func => RP.GPIO.UART);
+      RX_Pin.Configure
+         (Mode => RP.GPIO.Input,
+          Pull => RP.GPIO.Pull_Up,
+          Func => RP.GPIO.UART);
+      UART.Configure
+         (Config =>
+             (Baud      => 115_200,
+              Word_Size => 8,
+              Parity    => False,
+              Stop_Bits => 1,
+              others    => <>));
+   end Initialise;
+
+   procedure Put (Text : in String) is
+      Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
+      Status     : HAL.UART.UART_Status;
+   begin
+      for I in Text'Range loop
+         Text_Bytes (I) := Character'Pos (Text (I));
+      end loop;
+
+      UART.Transmit (Text_Bytes, Status);
+
+      if Status /= HAL.UART.Ok then
+         raise IO_Error with "UART transmit failed with status " & Status'Image;
       end if;
-      if Reload > 0 then
-         RP.PWM.Set_Interval (Retval.Base.Slice, Reload);
-      end if;
+   end Put;
 
-      RP.PWM.Enable (Retval.Base.Slice);
-      Point.Configure (RP.GPIO.Output, RP.GPIO.Floating, RP.GPIO.PWM);
-
-      return Retval;
-   end To_PWM;
-
-   procedure Write_Analog (Point : in PWM_Point; Level : in Percentage) is
-      Reload     : constant RP.PWM.Period := Get_Reload (Point);
-      Duty_Cycle : constant RP.PWM.Period := Reload * Level;
+   procedure Put_Line (Text : in String) is
    begin
-      RP.PWM.Set_Duty_Cycle (Point.Base.Slice, Point.Base.Channel, Duty_Cycle);
-      return;
-   end Write_Analog;
+      Put (Text & ASCII.LF);
+   end Put_Line;
 
-   procedure Write_Analog (Point : in PWM_Point; Level : in Analog_Level) is
-      Reload     : constant RP.PWM.Period := Get_Reload (Point);
-      Duty_Cycle : constant RP.PWM.Period := Reload * Level;
-   begin
-      RP.PWM.Set_Duty_Cycle (Point.Base.Slice, Point.Base.Channel, Duty_Cycle);
-      return;
-   end Write_Analog;
-
-begin
-   RP.PWM.Initialize;
-end Pico.Analog;
+end Pico.UART_IO;
 
 --------------------------------------------------------------- {{{ ----------
 --: vim: set textwidth=120 nowrap tabstop=8 shiftwidth=3 softtabstop=3 expandtab :

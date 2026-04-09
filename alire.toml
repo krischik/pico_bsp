@@ -33,7 +33,8 @@ website = "https://pico-doc.synack.me/"
 rp2040_hal  = "^3"
 
 [[pins]]
-rp2040_hal = { url='https://github.com/JeremyGrosser/rp2040_hal', branch='3.x' }
+rp2040_hal                      = { path='../rp2040_hal' }
+##  rp2040_hal = { url='https://github.com/JeremyGrosser/rp2040_hal', branch='3.x' }
 
 [configuration.variables]
 Device = {type = "Enum", values = [

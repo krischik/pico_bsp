@@ -42,8 +42,9 @@ package Pico.Analog is
    ---
    --  Default values suitable for dimming an LED.
    --
-   Default_Frequency : constant RP.Hertz      := 1_000_000;
-   Default_Reload    : constant RP.PWM.Period := 1_000;
+   Default_Frequency : constant RP.Hertz       := 1_000_000;
+   Default_Reload    : constant RP.PWM.Period  := 1_000;
+   Default_Divider : constant RP.PWM.Divider := RP.PWM.Divider (RP.Clock.Frequency (RP.Clock.SYS) / Default_Frequency);
 
    ---
    --  Analogue value as fixed point percentage.
@@ -133,14 +134,13 @@ package Pico.Analog is
    ---
    --  Map an input value from a custom range directly to a Percentage (0.0 .. 100.0).
    --
-   --  This is a convenient shortcut that scales any integer input (for example
-   --  from an ADC, a sensor, or a counter) into the full percentage range used
-   --  by ``Write_Analog``. It gives you 1000 distinct levels (0.0, 0.1, 0.2 … 99.9, 100.0)
-   --  which provides finer control than the 256 levels of ``Analog_Level``.
+   --  This is a convenient shortcut that scales any integer input (for example from an ADC, a sensor, or a counter)
+   --  into the full percentage range used by ``Write_Analog``. It gives you 1000 distinct levels (0.0, 0.1, 0.2 …
+   --  99.9, 100.0) which provides finer control than the 256 levels of ``Analog_Level``.
    --
-   --  Internally it first calls ``Pico.Utils.Map`` to get a value in the range 0..999,
-   --  then converts that to ``Percentage``. The division by 10 is done by the fixed-point
-   --  type itself — you do **not** need to split the integer manually.
+   --  Internally it first calls ``Pico.Utils.Map`` to get a value in the range 0..999, then converts that to
+   --  ``Percentage``. The division by 10 is done by the fixed-point type itself — you do **not** need to split
+   --  the integer manually.
    --
    --  Why the temporary ``Temp`` variable?
    --    The ``declare`` expression makes the mapping step explicit and easy to read.
@@ -156,17 +156,11 @@ package Pico.Analog is
    --: @param In_Max    Upper bound of the input range
    --: @return          Value scaled to the range 0.0 .. 100.0 as Percentage
    function Map_Percentage
-      (In_Value  : in Integer;
-       In_Min : in Integer;
-       In_Max : in Integer)
-       return Percentage is
-       (
-         declare
-            Temp : constant Integer := Pico.Utils.Map (In_Value, In_Min, In_Max, 0, 999);
-         begin
-            Percentage (Temp) / 10
-            --"  Percentage (Temp / 10) + Percentage (Temp mod 10) / 10
-       )  with Inline, Pure_Function;
+      (In_Value : in Integer;
+       In_Min   : in Integer;
+       In_Max   : in Integer)
+       return Percentage is (Percentage (Pico.Utils.Map (In_Value, In_Min, In_Max, 0, 999)) / 10) with
+      Inline, Pure_Function;
 
    ---
    --  Map an input value from a custom range directly to an Analog_Level (0..255).
