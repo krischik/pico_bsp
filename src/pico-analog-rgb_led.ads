@@ -107,6 +107,21 @@ package Pico.Analog.RGB_LED is
    --    Set_Color (My_LED, 16#00FF00#);  --  full green
    procedure Set_Color (LED : in Color_Array; Color : in RGB_Color);
 
+   --  @summary
+   --  Set the RGB LED colour using HSV (hue, saturation, value) colour  model.
+   --
+   --  @param LED
+   --    The three PWM points wired to the red, green and blue channels
+   --    of your common-cathode RGB LED.
+   --  @param H
+   --    Hue (0 … 255) where 0 = red, 85 = green, 170 = blue, and values in between are the colours in between.
+   --  @param S
+   --    Saturation (0 = grey, 255 = fully saturated colour).
+   --  @param V
+   --    Value (brightness) (0 = black, 255 = full brightness).
+   --
+   procedure Set_HSV (LED : in Color_Array; H, S, V : Analog_Level);
+
 end Pico.Analog.RGB_LED;
 
 --------------------------------------------------------------- {{{ ----------
