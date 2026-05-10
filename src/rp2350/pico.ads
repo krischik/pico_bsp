@@ -1,4 +1,3 @@
---
 --  Copyright 2021 (C) Jeremy Grosser
 --
 --  SPDX-License-Identifier: BSD-3-Clause
@@ -38,7 +37,8 @@ package Pico is
    GP27 : aliased GPIO_Point := (Pin => 27);
    GP28 : aliased GPIO_Point := (Pin => 28);
 
-   --  LED : GPIO_Point renames WL_GPIO0;
+   --  Doesn't work for Pico W or Pico 2 W as those models have the LED attached to wireless module.
+   LED : GPIO_Point renames GP0;
 
    --  Pico Datasheet - 4.4 Powerchain - Page 18 GPIO23 controls the RT6150 PS (Power Save) pin, active low.
    SMPS_PS : GPIO_Point renames GP23;
