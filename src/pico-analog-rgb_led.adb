@@ -22,7 +22,6 @@ pragma Extensions_Allowed (On);
 with Interfaces;
 
 package body Pico.Analog.RGB_LED is
-   package I renames Interfaces;
 
    procedure Set_Color
       (LED         : in Color_Array;

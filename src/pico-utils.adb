@@ -19,58 +19,32 @@ pragma License (Modified_Gpl);
 pragma Ada_2022;
 pragma Extensions_Allowed (On);
 
-with HAL.UART;
-with RP.Device;
-with RP.GPIO;
-with RP.UART;
+package body Pico.Utils with
+   Spark_Mode => On
+is
 
-package body Pico.UART_IO is
-   use type HAL.UART.UART_Status;
-
-   UART   : RP.UART.UART_Port renames RP.Device.UART_0;
-   TX_Pin : RP.GPIO.GPIO_Point renames Pico.GP0;   -- UART0 TX
-   RX_Pin : RP.GPIO.GPIO_Point renames Pico.GP1;   -- UART0 RX
-
-   procedure Initialise is
+   function Map
+      (In_Value : in Integer;
+       In_Min   : in Integer;
+       In_Max   : in Integer;
+       Out_Min  : in Integer;
+       Out_Max  : in Integer)
+       return Integer
+   is
+      --  We compute the scaling in steps so GNATprove can prove every intermediate result stays within Integer'Range.
+      Range_In  : constant Long_Long_Integer := Long_Long_Integer (In_Max) - Long_Long_Integer (In_Min);
+      Range_Out : constant Long_Long_Integer := Long_Long_Integer (Out_Max) - Long_Long_Integer (Out_Min);
+      Offset    : constant Long_Long_Integer := Long_Long_Integer (In_Value) - Long_Long_Integer (In_Min);
    begin
-      TX_Pin.Configure
-         (Mode => RP.GPIO.Output,
-          Pull => RP.GPIO.Pull_Up,
-          Func => RP.GPIO.UART);
-      RX_Pin.Configure
-         (Mode => RP.GPIO.Input,
-          Pull => RP.GPIO.Pull_Up,
-          Func => RP.GPIO.UART);
-      UART.Configure
-         (Config =>
-             (Baud      => 115_200,
-              Word_Size => 8,
-              Parity    => False,
-              Stop_Bits => 1,
-              others    => <>));
-   end Initialise;
-
-   procedure Put (Text : in String) is
-      Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
-      Status     : HAL.UART.UART_Status;
-   begin
-      for I in Text'Range loop
-         Text_Bytes (I) := Character'Pos (Text (I));
-      end loop;
-
-      UART.Transmit (Text_Bytes, Status);
-
-      if Status /= HAL.UART.Ok then
-         raise IO_Error with "UART transmit failed with status " & Status'Image;
+      if Range_In = 0 then
+         --  Degenerate case: input range has zero width → return lower output
+         return Out_Min;
+      else
+         return Integer (Long_Long_Integer (Out_Min) + (Offset * Range_Out) / Range_In);
       end if;
-   end Put;
+   end Map;
 
-   procedure Put_Line (Text : in String) is
-   begin
-      Put (Text & ASCII.LF);
-   end Put_Line;
-
-end Pico.UART_IO;
+end Pico.Utils;
 
 --------------------------------------------------------------- {{{ ----------
 --: vim: set textwidth=120 nowrap tabstop=8 shiftwidth=3 softtabstop=3 expandtab :

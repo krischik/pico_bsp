@@ -29,7 +29,9 @@ pragma Extensions_Allowed (On);
 --   Current content:
 --     * Map – linear interpolation (the famous Arduino map() function)
 --
-package Pico.Utils is
+package Pico.Utils with
+   Spark_Mode => On
+is
 
    ---
    --  Map a value from one range into another range using linear interpolation.
@@ -58,8 +60,11 @@ package Pico.Utils is
        In_Max   : in Integer;
        Out_Min  : in Integer;
        Out_Max  : in Integer)
-       return Integer is ((In_Value - In_Min) * (Out_Max - Out_Min) / (In_Max - In_Min) + Out_Min) with
-      Inline, Pure_Function;
+       return Integer with
+      Inline,
+      Pure_Function,
+      Pre  => In_Value >= In_Min and then In_Value <= In_Max,
+      Post => Map'Result >= Out_Min and then Map'Result <= Out_Max;
 
 end Pico.Utils;
 

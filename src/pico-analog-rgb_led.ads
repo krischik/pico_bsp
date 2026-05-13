@@ -108,7 +108,7 @@ package Pico.Analog.RGB_LED is
    procedure Set_Color (LED : in Color_Array; Color : in RGB_Color);
 
    --  @summary
-   --  Set the RGB LED colour using HSV (hue, saturation, value) colour  model.
+   --  Set the RGB LED colour using HSV (hue, saturation, value) colour model.
    --
    --  @param LED
    --    The three PWM points wired to the red, green and blue channels
