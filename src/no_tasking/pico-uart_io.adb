@@ -24,31 +24,64 @@ with RP.Device;
 with RP.GPIO;
 with RP.UART;
 
-package body Pico.UART_IO is
+package body Pico.UART_IO with
+   Spark_Mode => Off
+is
    use type HAL.UART.UART_Status;
 
-   UART   : RP.UART.UART_Port renames RP.Device.UART_0;
-   TX_Pin : RP.GPIO.GPIO_Point renames Pico.GP0;   -- UART0 TX
-   RX_Pin : RP.GPIO.GPIO_Point renames Pico.GP1;   -- UART0 RX
+   --  UART setup usually used with a Raspberry Pi Debug Probe, but can be used with any USB-to-Serial adapter
+   --  connected to the UART pins.
+   UART           : RP.UART.UART_Port renames RP.Device.UART_0;
+   TX_Pin         : RP.GPIO.GPIO_Point renames Pico.GP0;   -- UART0 TX
+   RX_Pin         : RP.GPIO.GPIO_Point renames Pico.GP1;   -- UART0 RX
+   Is_Initialised : Boolean := False;
 
    procedure Initialise is
    begin
-      TX_Pin.Configure
-         (Mode => RP.GPIO.Output,
-          Pull => RP.GPIO.Pull_Up,
-          Func => RP.GPIO.UART);
-      RX_Pin.Configure
-         (Mode => RP.GPIO.Input,
-          Pull => RP.GPIO.Pull_Up,
-          Func => RP.GPIO.UART);
-      UART.Configure
-         (Config =>
-             (Baud      => 115_200,
-              Word_Size => 8,
-              Parity    => False,
-              Stop_Bits => 1,
-              others    => <>));
+      if not Is_Initialised then
+         --  if not already enabled, enable the peripheral clock for UART and Timer, as they are required for UART
+         --  operation.
+         if not RP.Clock.Enabled (RP.Clock.PERI) then
+            RP.Clock.Enable (RP.Clock.PERI);
+         end if;
+
+         --  If not already enabled, enable the timer, as it is required for UART operation .
+         if not RP.Device.Timer.Enabled then
+            RP.Device.Timer.Enable;
+         end if;
+
+         --  Enable GPIO, as it is required for UART operation. Does nothing if already enabled.
+         RP.GPIO.Enable;
+
+         TX_Pin.Configure
+            (Mode => RP.GPIO.Output,
+             Pull => RP.GPIO.Pull_Up,
+             Func => RP.GPIO.UART);
+         RX_Pin.Configure
+            (Mode => RP.GPIO.Input,
+             Pull => RP.GPIO.Floating,
+             Func => RP.GPIO.UART);
+         UART.Configure
+            (Config =>
+                (Baud      => 115_200,
+                 Word_Size => 8,
+                 Parity    => False,
+                 Stop_Bits => 1,
+                 others    => <>));
+         Is_Initialised := True;
+      end if;
    end Initialise;
+
+   procedure Put (Text : in Character) is
+      Text_Bytes : constant HAL.UART.UART_Data_8b (1 .. 1) := [1 => Character'Pos (Text)];
+      Status     : HAL.UART.UART_Status;
+   begin
+      UART.Transmit (Text_Bytes, Status);
+
+      if Status /= HAL.UART.Ok then
+         raise IO_Error with "UART transmit failed with status " & Status'Image;
+      end if;
+   end Put;
 
    procedure Put (Text : in String) is
       Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
@@ -70,11 +103,24 @@ package body Pico.UART_IO is
       Put (Text & ASCII.LF);
    end Put_Line;
 
-   procedure Get (Text : out String) is
+   function Get (Timeout : in Duration := 60.0) return Character is
+      Text_Bytes : HAL.UART.UART_Data_8b (1 .. 1);
+      Status     : HAL.UART.UART_Status;
+   begin
+      UART.Receive (Text_Bytes, Status, Natural (Timeout * 1_000));
+
+      if Status /= HAL.UART.Ok then
+         raise IO_Error with "UART receive failed with status " & Status'Image;
+      end if;
+
+      return Character'Val (Text_Bytes (1));
+   end Get;
+
+   procedure Get (Text : out String; Timeout : in Duration := 60.0) is
       Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
       Status     : HAL.UART.UART_Status;
    begin
-      UART.Receive (Text_Bytes, Status);
+      UART.Receive (Text_Bytes, Status, Natural (Timeout * 1_000));
 
       if Status /= HAL.UART.Ok then
          raise IO_Error with "UART receive failed with status " & Status'Image;
@@ -86,8 +132,6 @@ package body Pico.UART_IO is
    end Get;
 
    procedure Get_Line (Text : out String) is
-      use type HAL.UInt8;
-
       Text_Bytes : HAL.UART.UART_Data_8b (1 .. 1);
       Status     : HAL.UART.UART_Status;
       Pos        : Natural := Text'First;
@@ -100,20 +144,60 @@ package body Pico.UART_IO is
          end if;
 
          if Status /= HAL.UART.Err_Timeout then
-            if Text_Bytes (1) = Character'Pos (ASCII.LF) then
-               exit;
-            end if;
+            declare
+               Char : constant Character := Character'Val (Text_Bytes (1));
+            begin
+               if Char in ASCII.CR | ASCII.LF then
+                  exit;
+               end if;
 
-            if Pos <= Text'Last then
-               Text (Pos) := Character'Val (Text_Bytes (1));
-               Pos        := Pos + 1;
-            end if;
+               if Pos <= Text'Last then
+                  Text (Pos) := Char;
+                  Pos        := Pos + 1;
+               end if;
+            end;
          end if;
       end loop;
 
       Text (Pos .. Text'Last) := [others => ' '];
    end Get_Line;
 
+   procedure Read_Line (Text : out String) is
+      Text_Bytes : HAL.UART.UART_Data_8b (1 .. 1);
+      Status     : HAL.UART.UART_Status;
+      Pos        : Natural := Text'First;
+   begin
+      loop
+         UART.Receive (Text_Bytes, Status, 10_000);
+
+         if Status not in HAL.UART.Ok | HAL.UART.Err_Timeout then
+            raise IO_Error with "UART receive failed with status " & Status'Image;
+         end if;
+
+         if Status /= HAL.UART.Err_Timeout then
+            declare
+               Char : constant Character := Character'Val (Text_Bytes (1));
+            begin
+               Put (Char);
+
+               if Char in ASCII.CR | ASCII.LF then
+                  exit;
+               elsif Char = ASCII.BS then
+                  if Pos > Text'First then
+                     Pos := Pos - 1;
+                     Put (' ');
+                     Put (ASCII.BS);
+                  end if;
+               elsif Pos <= Text'Last then
+                  Text (Pos) := Character'Val (Text_Bytes (1));
+                  Pos        := Pos + 1;
+               end if;
+            end;
+         end if;
+      end loop;
+
+      Text (Pos .. Text'Last) := [others => ' '];
+   end Read_Line;
 end Pico.UART_IO;
 
 --------------------------------------------------------------- {{{ ----------

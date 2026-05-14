@@ -21,82 +21,101 @@ pragma Extensions_Allowed (On);
 
 ---
 --  @summary
---  Simple UART output helper for quick debugging on the Raspberry Pi Pico.
+--  Simple UART output (and input) helper for quick debugging on the Raspberry Pi Pico.
 --
 --  @description
---  This package configures the RP2040's UART0 on GPIO 0 (TX) and GPIO 1 (RX) at 115200 baud, 8N1. These are exactly
---  the pins used by the Raspberry Pi Debug Probe when you connect it for UART communication.
+--  This package configures UART0 on GPIO 0 (TX) / GPIO 1 (RX) at 115200 baud, 8N1 — exactly the pins used by the
+--  Raspberry Pi Debug Probe.
 --
 --  Why this package exists
 --  =======================
---  I tried using Ada.Text_IO with the standard Pico BSP, but it didn't produce any output on the Debug Probe. Rather
---  than spend ages debugging the runtime configuration, I created this tiny helper that lives inside the pico_xbsp
---  (extended board support package). It gives me immediate serial output while I develop the rest of the project.
+--  The standard Ada.Text_IO did not produce output on the Debug Probe with the light runtime. This tiny helper gives
+--  immediate serial I/O while the rest of the BSP is still being developed.
 --
---:  Usage with the Debug Probe
---:  ==========================
---:  1. Wire the Debug Probe:
---:     * Debug Probe TX  →  Pico GP0 (physical pin 1)
---:     * Debug Probe RX  →  Pico GP1 (physical pin 2)
---:     * Debug Probe GND →  Pico GND
+--  Usage with the Debug Probe
+--  ==========================
+--  1. Wire the Debug Probe:
+--     * Debug Probe TX  → Pico GP0 (pin 1)
+--     * Debug Probe RX  → Pico GP1 (pin 2)
+--     * Debug Probe GND → Pico GND
 --
---:  2. Flash your program as usual.
+--  2. Flash your program.
+--  3. Open CoolTerm / minicom / tio / screen / PuTTY at 115200 8N1.
+--  4. Call `Initialise` once at the start of your main procedure, then use `Put` / `Put_Line` freely.
 --
---:  3. Open CoolTerm (or minicom, tio, screen, PuTTY …) with these settings:
---:     * Port: the one that appears when the Debug Probe is connected
---:     * Baud rate: 115200
---:     * 8 data bits, no parity, 1 stop bit, no flow control
+--  Important notes
+--  ===============
+--  * Uses UART0 (the same peripheral the USB serial console normally uses).
+--  * No buffering or advanced formatting — data goes straight to the UART FIFO.
+--  * `Get_Line` and `Read_Line` block until a newline arrives (intended for unit tests and interactive input, not for
+--     concurrent tasks).
+--  * Two variants exist: a small, fast, non-task-safe version for the light runtime and a protected, thread-safe
+--    version for the full runtime. Select via the Alire/GPR parameter `pico_xbsp.Variant`.
 --
---:  4. Call Pico.UART_IO.Init once at the start of your main procedure, then use Put and Put_Line freely. You will see
---:     the transmit LED flash on the Debug Probe exactly as you noticed earlier.
---
---:  Important notes
---:  ===============
---:  * This package deliberately uses UART0, the same peripheral that the USB serial console would normally use.
---:    That is intentional — it keeps :    debugging simple and consistent.
---:  * No buffering or advanced formatting is performed — what you Put is sent directly to the UART FIFO.
-------------------------------------------------------------------------------
-
 package Pico.UART_IO with
    Spark_Mode => Off
 is
-   --  Raised if the UART cannot be initialised (very rare on a Pico) or I/O fails.
+   ---
+   --  Raised on any UART initialisation or communication error.
    IO_Error : exception;
 
-   --  Initialises UART0 on GP0 (TX) and GP1 (RX) at 115200 baud. Must be called before any Put or Put_Line. Safe to
-   --  call more than once — subsequent calls do nothing.
+   ---
+   --  Initialises UART0 on GP0/GP1 at 115200 baud. Safe to call more than once.
+   --" @exception IO_Error
    procedure Initialise;
 
-   --  Sends a string to the UART. No newline is added.
+   ---
+   --  Sends a single character.
    --
-   --" @param Text The string to send. It is sent directly to the UART FIFO without any buffering or formatting.
-   --" @exception IO_Error Raised if the UART transmit operation fails with a status
+   --" @param Text The character to send.
+   --" @exception IO_Error
+   procedure Put (Text : in Character);
+
+   ---
+   --  Sends a string (no newline added).
+   --
+   --" @param Text The string to send.
+   --" @exception IO_Error
    procedure Put (Text : in String);
 
-   --  Sends a string to the UART. A newline is added.
+   ---
+   --  Sends a string followed by a newline.
    --
-   --" @param Text The string to send. It is sent directly to the UART FIFO without any buffering or formatting.
-   --" @exception IO_Error Raised if the UART transmit operation fails with a status
+   --" @param Text The string to send.
+   --" @exception IO_Error
    procedure Put_Line (Text : in String);
 
    ---
-   --  Reads text from the UART. On time-out the string is padded with spaces.
+   --  Reads one character. Raises IO_Error on timeout or hardware error.
    --
-   --" @param Text The string to store the received characters.
-   --" @exception IO_Error Raised if the UART receive operation fails with a status other than Ok or Timeout.
-   procedure Get (Text : out String);
+   --" @param Timeout Maximum wait time (default 60 s). 
+   --" @return Character read
+   --" @exception IO_Error
+   function Get (Timeout : in Duration := 60.0) return Character;
 
-   --  Get_Line reads characters from the UART until a newline character is received, and stores the received
-   --  characters in Text. The string is space-padded to the length of Text, so if the received line is shorter
-   --  than Text'Length, the remaining characters in Text will be space characters.
+   ---
+   --  Reads characters into the string. On timeout the remainder is padded with spaces.
    --
-   --  Note that Get_Line does not return until a newline character is received, so it will block indefinitely if
-   --  no newline character is received. If you want to avoid blocking indefinitely, you can use the Get procedure
-   --  instead, which allows you to specify a timeout.
+   --" @param Text The string received.
+   --" @param Timeout Maximum wait time (default 60 s).
+   --" @exception IO_Error
+   procedure Get (Text : out String; Timeout : in Duration := 60.0);
+
+   ---
+   --  Reads characters until a newline is received. The string is padded with spaces if the line is shorter than
+   --  Text'Length. Blocks indefinitely.
    --
-   --" @param Text The string to store the received characters.
-   --" @exception IO_Error Raised if the UART receive operation fails with a status other than Ok or Timeout.
+   --" @param Text The string received.
+   --" @exception IO_Error
    procedure Get_Line (Text : out String);
+
+   ---
+   --  Reads a line with local echo and backspace support. Blocks until newline.
+   --  The string is space-padded to Text'Length.
+   --
+   --" @param Text The string received.
+   --" @exception IO_Error
+   procedure Read_Line (Text : out String);
 
 end Pico.UART_IO;
 

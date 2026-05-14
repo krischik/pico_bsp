@@ -115,6 +115,17 @@ is
       end if;
    end Initialise;
 
+   procedure Put (Text : in Character) is
+      Text_Bytes : constant HAL.UART.UART_Data_8b (1 .. 1) := [1 => Character'Pos (Text)];
+      Status     : HAL.UART.UART_Status;
+   begin
+      Transmitter.Transmit (Text_Bytes, Status);
+
+      if Status /= HAL.UART.Ok then
+         raise IO_Error with "UART transmit failed with status " & Status'Image;
+      end if;
+   end Put;
+
    procedure Put (Text : in String) is
       Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
       Status     : HAL.UART.UART_Status;
@@ -135,11 +146,24 @@ is
       Put (Text & ASCII.LF);
    end Put_Line;
 
-   procedure Get (Text : out String) is
+   function Get (Timeout : in  Duration := 60.0) return Character is
+      Text_Bytes : HAL.UART.UART_Data_8b (1 .. 1);
+      Status     : HAL.UART.UART_Status;
+   begin
+      Receiver.Receive (Text_Bytes, Status, Natural (Timeout * 1_000));
+
+      if Status /= HAL.UART.Ok then
+         raise IO_Error with "UART receive failed with status " & Status'Image;
+      end if;
+
+      return Character'Val (Text_Bytes (1));
+   end Get;
+
+   procedure Get (Text : out String; Timeout : in  Duration := 60.0) is
       Text_Bytes : HAL.UART.UART_Data_8b (1 .. Text'Length);
       Status     : HAL.UART.UART_Status;
    begin
-      Receiver.Receive (Text_Bytes, Status);
+      Receiver.Receive (Text_Bytes, Status, Natural (Timeout * 1_000));
 
       if Status /= HAL.UART.Ok then
          raise IO_Error with "UART receive failed with status " & Status'Image;
@@ -148,7 +172,6 @@ is
       for I in Text'Range loop
          Text (I) := Character'Val (Text_Bytes (I));
       end loop;
-
    end Get;
 
    procedure Get_Line (Text : out String) is
@@ -164,19 +187,60 @@ is
          end if;
 
          if Status /= HAL.UART.Err_Timeout then
-            if Text_Bytes (1) = Character'Pos (ASCII.LF) then
-               exit;
-            end if;
+            declare
+               Char : constant Character := Character'Val (Text_Bytes (1));
+            begin
+               if Char in ASCII.CR | ASCII.LF then
+                  exit;
+               end if;
 
-            if Pos <= Text'Last then
-               Text (Pos) := Character'Val (Text_Bytes (1));
-               Pos        := Pos + 1;
-            end if;
+               if Pos <= Text'Last then
+                  Text (Pos) := Char;
+                  Pos        := Pos + 1;
+               end if;
+            end;
          end if;
       end loop;
 
       Text (Pos .. Text'Last) := [others => ' '];
    end Get_Line;
+
+   procedure Read_Line (Text : out String) is
+      Text_Bytes : HAL.UART.UART_Data_8b (1 .. 1);
+      Status     : HAL.UART.UART_Status;
+      Pos        : Natural := Text'First;
+   begin
+      loop
+         Receiver.Receive (Text_Bytes, Status, 10_000);
+
+         if Status not in HAL.UART.Ok | HAL.UART.Err_Timeout then
+            raise IO_Error with "UART receive failed with status " & Status'Image;
+         end if;
+
+         if Status /= HAL.UART.Err_Timeout then
+            declare
+               Char : constant Character := Character'Val (Text_Bytes (1));
+            begin
+               Put (Char);
+
+               if Char in ASCII.CR | ASCII.LF then
+                  exit;
+               elsif Char = ASCII.BS then
+                  if Pos > Text'First then
+                     Pos := Pos - 1;
+                     Put (' ');
+                     Put (ASCII.BS);
+                  end if;
+               elsif Pos <= Text'Last then
+                  Text (Pos) := Character'Val (Text_Bytes (1));
+                  Pos        := Pos + 1;
+               end if;
+            end;
+         end if;
+      end loop;
+
+      Text (Pos .. Text'Last) := [others => ' '];
+   end Read_Line;
 end Pico.UART_IO;
 
 --------------------------------------------------------------- {{{ ----------
