@@ -20,7 +20,7 @@ rp2040_hal.device = "RP2350A"
 
 The configuration variable Device controls which variant is selected at build time.
 """
-version = "3.0.0-mk1"
+version = "3.0.0-mk.1"
 licenses = "BSD-3-Clause"
 
 authors = ["Jeremy Grosser", "Martin Krischik"]
